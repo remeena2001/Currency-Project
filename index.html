@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Sri Lankan Currency Detector</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,Arial,sans-serif;background:#f0f2f5;color:#1e293b;min-height:100vh}
+
+header{background:#1a56db;color:#fff;padding:18px 32px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+header .logo{font-size:2rem}
+header h1{font-size:1.2rem;font-weight:700}
+header p{font-size:.78rem;opacity:.8;margin-top:3px}
+
+.page{max-width:980px;margin:28px auto;padding:0 18px}
+
+.card{background:#fff;border-radius:14px;padding:24px;margin-bottom:20px;box-shadow:0 1px 6px rgba(0,0,0,.07);border:1px solid #e2e8f0}
+.card-title{font-size:.95rem;font-weight:700;color:#1e3a8a;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+
+/* Upload */
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.side-label{font-size:.8rem;font-weight:700;color:#64748b;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.pill{background:#1a56db;color:#fff;padding:2px 9px;border-radius:6px;font-size:.72rem}
+.drop-zone{position:relative;border:2px dashed #cbd5e1;border-radius:10px;padding:28px 16px;text-align:center;cursor:pointer;transition:.2s;background:#f8fafc}
+.drop-zone:hover,.drop-zone.over{border-color:#1a56db;background:#eff6ff}
+.drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz-icon{font-size:2.2rem;margin-bottom:8px}
+.drop-zone p{font-size:.8rem;color:#94a3b8}
+.preview{width:100%;max-height:150px;object-fit:contain;margin-top:12px;border-radius:8px;display:none;border:1px solid #e2e8f0}
+
+/* Denom */
+.denom-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.denom-row label{font-size:.85rem;font-weight:600;color:#475569}
+select{padding:7px 12px;border-radius:8px;border:1px solid #cbd5e1;font-size:.85rem;background:#fff;cursor:pointer;color:#1e293b}
+
+/* Button */
+.btn-row{text-align:center;margin:22px 0}
+.btn{background:#1a56db;color:#fff;border:none;padding:14px 60px;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;transition:.2s}
+.btn:hover:not(:disabled){background:#1e40af;transform:translateY(-1px);box-shadow:0 4px 16px rgba(26,86,219,.3)}
+.btn:disabled{background:#94a3b8;cursor:not-allowed;transform:none}
+.loading{display:none;margin-top:12px;color:#64748b;font-size:.88rem;text-align:center}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid #e2e8f0;border-top-color:#1a56db;border-radius:50%;animation:spin .65s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Result */
+.result-card{display:none;border-radius:14px;padding:28px 24px;text-align:center;margin-bottom:20px}
+.result-card.genuine{background:#f0fdf4;border:2px solid #86efac}
+.result-card.suspicious{background:#fff1f2;border:2px solid #fca5a5}
+.result-card.uncertain{background:#fffbeb;border:2px solid #fde68a}
+.verdict{font-size:2.4rem;font-weight:800;margin-bottom:6px}
+.genuine .verdict{color:#15803d}
+.suspicious .verdict{color:#b91c1c}
+.uncertain .verdict{color:#b45309}
+.verdict-sub{font-size:.95rem;color:#64748b;margin-bottom:24px}
+.scores{display:flex;justify-content:center;gap:32px;flex-wrap:wrap}
+.score-box{text-align:center}
+.score-num{font-size:1.8rem;font-weight:800;color:#1a56db}
+.score-lbl{font-size:.72rem;color:#94a3b8;margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+.ae-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+.ae-card{border-radius:10px;padding:18px;border:1.5px solid #e2e8f0;background:#f8fafc}
+.ae-card-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;margin-bottom:12px}
+.ae-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.ae-label{font-size:.82rem;color:#475569}
+.ae-value{font-size:.92rem;font-weight:700;color:#1e293b}
+.ae-bar-bg{height:8px;background:#e2e8f0;border-radius:99px;margin-top:4px;position:relative}
+.ae-bar-fill{height:8px;border-radius:99px}
+.ae-bar-thresh{position:absolute;top:-3px;left:50%;height:14px;width:2px;background:#d97706;border-radius:99px}
+.verdict-badge{display:inline-block;padding:4px 14px;border-radius:99px;font-size:.78rem;font-weight:700;margin-top:10px}
+.badge-genuine{background:#dcfce7;color:#15803d}
+.badge-suspicious{background:#fee2e2;color:#b91c1c}
+.badge-uncertain{background:#fef3c7;color:#b45309}
+
+/* Preprocessing section */
+.prep-section{display:none}
+.section-header{font-size:1rem;font-weight:700;color:#1e3a8a;margin-bottom:6px}
+.section-desc{font-size:.82rem;color:#64748b;margin-bottom:18px}
+
+/* Side tabs */
+.side-tabs{display:flex;gap:8px;margin-bottom:20px}
+.side-tab{padding:6px 20px;border-radius:20px;border:1.5px solid #e2e8f0;font-size:.8rem;font-weight:600;color:#64748b;background:#fff;cursor:pointer;transition:.2s}
+.side-tab.active{background:#1a56db;color:#fff;border-color:#1a56db}
+
+/* Info chips */
+.chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+.chip{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:20px;padding:4px 12px;font-size:.74rem;color:#475569}
+.chip.ok{background:#f0fdf4;border-color:#86efac;color:#15803d}
+.chip.warn{background:#fffbeb;border-color:#fde68a;color:#b45309}
+
+/* Step connector */
+.steps-flow{display:flex;flex-direction:column;gap:0}
+.step-row{display:flex;align-items:stretch;gap:0}
+.step-connector{display:flex;flex-direction:column;align-items:center;width:48px;flex-shrink:0}
+.step-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:#fff;flex-shrink:0;z-index:1}
+.step-line{width:2px;flex:1;background:#e2e8f0;margin:4px 0}
+.step-content{flex:1;margin-bottom:16px}
+
+/* Step cards */
+.step-card{border-radius:12px;border:1.5px solid #e2e8f0;overflow:hidden;background:#fff;transition:.2s}
+.step-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.step-card.final-step{border-color:#1a56db;box-shadow:0 0 0 2px rgba(26,86,219,.15)}
+.step-card-head{padding:14px 18px;background:#f8fafc;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px}
+.step-tag{font-size:.7rem;font-weight:700;padding:2px 10px;border-radius:20px}
+.step-card-title{font-size:.9rem;font-weight:700;color:#1e293b}
+.step-card-desc{font-size:.76rem;color:#64748b;margin-top:2px}
+.step-img-wrap{padding:12px;cursor:pointer}
+.step-img-wrap img{width:100%;border-radius:8px;display:block;object-fit:cover;max-height:200px}
+.step-img-wrap.tall img{max-height:140px}
+.ready-badge{background:#dcfce7;color:#15803d;font-size:.65rem;padding:2px 8px;border-radius:99px;font-weight:700;margin-left:auto}
+
+/* Step colours */
+.s1{background:#64748b}.s2{background:#1a56db}.s3{background:#7c3aed}
+.s4{background:#0891b2}.s5{background:#059669}.s6{background:#1a56db}
+.tag1{background:#f1f5f9;color:#475569}
+.tag2{background:#dbeafe;color:#1e40af}
+.tag3{background:#ede9fe;color:#6d28d9}
+.tag4{background:#cffafe;color:#0e7490}
+.tag5{background:#dcfce7;color:#15803d}
+.tag6{background:#dbeafe;color:#1e40af}
+
+/* History */
+.hist-table{width:100%;border-collapse:collapse;font-size:.84rem}
+.hist-table th{background:#f8fafc;color:#64748b;padding:10px 12px;text-align:left;font-size:.71rem;text-transform:uppercase;letter-spacing:.4px}
+.hist-table td{padding:10px 12px;border-bottom:1px solid #f1f5f9}
+.hist-table tr:hover td{background:#f8fafc}
+.vbadge{padding:3px 10px;border-radius:20px;font-size:.71rem;font-weight:700}
+.vg{background:#dcfce7;color:#15803d}
+.vs{background:#fee2e2;color:#b91c1c}
+.vu{background:#fef3c7;color:#b45309}
+.empty{text-align:center;padding:24px;color:#94a3b8;font-size:.85rem}
+
+/* Lightbox */
+#lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:1000;place-items:center;cursor:pointer}
+#lb.open{display:grid}
+#lb img{max-width:92vw;max-height:88vh;border-radius:10px}
+#lb-cap{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;padding:5px 20px;border-radius:99px;font-size:.82rem;pointer-events:none;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">💵</div>
+  <div>
+    <h1>Sri Lankan Rupee — Currency Detector</h1>
+    <p>Upload front &amp; back images to verify Authenticity</p>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- ── Upload ── -->
+  <div class="card">
+    <div class="card-title">📤 Upload Note Images</div>
+    <div class="denom-row">
+      <label>Denomination (optional):</label>
+      <select id="denom-sel">
+        <option value="">🔍 Auto-detect</option>
+        <option value="20">Rs. 20</option>
+        <option value="50">Rs. 50</option>
+        <option value="100">Rs. 100</option>
+        <option value="500">Rs. 500</option>
+        <option value="1000">Rs. 1000</option>
+        <option value="5000">Rs. 5000</option>
+      </select>
+    </div>
+    <div class="upload-grid">
+      <div>
+        <div class="side-label"><span class="pill">FRONT</span> Front side of note</div>
+        <div class="drop-zone" id="dz-front">
+          <input type="file" accept="image/*" onchange="onFile('front',event)"/>
+          <div class="dz-icon">🖼️</div>
+          <p>Click or drag &amp; drop<br/>any angle, any size</p>
+        </div>
+        <img class="preview" id="prev-front"/>
+      </div>
+      <div>
+        <div class="side-label"><span class="pill">BACK</span> Back side of note</div>
+        <div class="drop-zone" id="dz-back">
+          <input type="file" accept="image/*" onchange="onFile('back',event)"/>
+          <div class="dz-icon">🖼️</div>
+          <p>Click or drag &amp; drop<br/>any angle, any size</p>
+        </div>
+        <img class="preview" id="prev-back"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Button ── -->
+  <div class="btn-row">
+    <button class="btn" id="verifybtn" onclick="verify()" disabled>⚡ Verify Note</button>
+    <div class="loading" id="loading">
+      <span class="spin"></span>Preprocessing images → Running autoencoder… please wait
+    </div>
+  </div>
+
+  <!-- ── Result banner ── -->
+  <div class="result-card" id="result-card">
+    <div class="verdict" id="r-verdict"></div>
+    <div class="verdict-sub" id="r-sub"></div>
+    <div class="scores">
+      <div class="score-box"><div class="score-num" id="r-conf">—</div><div class="score-lbl">Overall confidence</div></div>
+      <div class="score-box"><div class="score-num" id="r-front">—</div><div class="score-lbl">Front score</div></div>
+      <div class="score-box"><div class="score-num" id="r-back">—</div><div class="score-lbl">Back score</div></div>
+    </div>
+    <div class="ae-grid" id="ae-detail"></div>
+  </div>
+
+  <!-- ── Preprocessing steps section ── -->
+  <div class="prep-section card" id="prep-section">
+    <div class="section-header">🔧 Image Preprocessing — Step by Step</div>
+    <div class="section-desc">
+      Every uploaded image passes through 6 preprocessing steps before the autoencoder sees it.
+      This ensures consistent orientation, perspective, and brightness regardless of how the photo was taken.
+    </div>
+
+    <div class="side-tabs">
+      <button class="side-tab active" onclick="showSide('front',this)">📷 Front image</button>
+      <button class="side-tab" onclick="showSide('back',this)">📷 Back image</button>
+    </div>
+
+    <!-- Info chips -->
+    <div class="chip-row" id="chips-front"></div>
+    <div class="chip-row" id="chips-back" style="display:none"></div>
+
+    <!-- Front steps -->
+    <div id="steps-front" class="steps-flow"></div>
+
+    <!-- Back steps -->
+    <div id="steps-back" class="steps-flow" style="display:none"></div>
+  </div>
+
+  <!-- ── History ── -->
+  <div class="card">
+    <div class="card-title">🕒 Recent Scans</div>
+    <table class="hist-table">
+      <thead>
+        <tr><th>Time</th><th>Denomination</th><th>Verdict</th><th>Confidence</th><th>Denom conf.</th></tr>
+      </thead>
+      <tbody id="hist-body">
+        <tr><td colspan="5" class="empty">No scans yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- Lightbox -->
+<div id="lb" onclick="closeLB()">
+  <div id="lb-cap"></div>
+  <img id="lb-img" src="" alt=""/>
+</div>
+
+<script>
+const files = {front:null, back:null};
+
+/* ── Step metadata ── */
+const STEPS = [
+  {
+    key:   'step1_original',
+    num:   'S1',
+    cls:   's1', tag: 'tag1',
+    title: 'Original + Note Detection',
+    desc:  'Raw uploaded photo. Green outline shows the detected note boundary.',
+    tagTxt:'Input'
+  },
+  {
+    key:   'step2_grayscale',
+    num:   'S2',
+    cls:   's2', tag: 'tag2',
+    title: 'Grayscale Conversion',
+    desc:  'Convert to grayscale. Removes colour — keeps only brightness information needed for edge detection.',
+    tagTxt:'Step 2'
+  },
+  {
+    key:   'step3_threshold',
+    num:   'S3',
+    cls:   's3', tag: 'tag3',
+    title: 'Adaptive Threshold',
+    desc:  'Convert to black & white using adaptive thresholding. Handles uneven lighting across the image.',
+    tagTxt:'Step 3'
+  },
+  {
+    key:   'step4_morphology',
+    num:   'S4',
+    cls:   's4', tag: 'tag4',
+    title: 'Morphological Operations',
+    desc:  'Close small gaps in the note boundary (morphological closing + dilation). Makes the note outline solid for corner detection.',
+    tagTxt:'Step 4'
+  },
+  {
+    key:   'step5_warp',
+    num:   'S5',
+    cls:   's5', tag: 'tag5',
+    title: 'Perspective Warp',
+    desc:  'Detect the four corners of the note and warp it to a flat 1024×512 rectangle. Removes angle, tilt, and rotation.',
+    tagTxt:'Step 5'
+  },
+  {
+    key:   'step6_clahe',
+    num:   'S6',
+    cls:   's6', tag: 'tag6',
+    title: 'CLAHE Brightness Normalisation',
+    desc:  'Apply CLAHE (Contrast Limited Adaptive Histogram Equalisation) on the brightness channel. Makes all images look the same regardless of lighting conditions.',
+    tagTxt:'Final',
+    isFinal: true
+  },
+];
+
+/* ── File handling ── */
+function onFile(side, e) {
+  files[side] = e.target.files[0];
+  if (!files[side]) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    const img = document.getElementById('prev-'+side);
+    img.src = ev.target.result;
+    img.style.display = 'block';
+  };
+  r.readAsDataURL(files[side]);
+  document.getElementById('verifybtn').disabled = !(files.front && files.back);
+}
+
+['front','back'].forEach(side => {
+  const dz = document.getElementById('dz-'+side);
+  dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('over');
+    files[side] = e.dataTransfer.files[0];
+    if (!files[side]) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      const img = document.getElementById('prev-'+side);
+      img.src = ev.target.result;
+      img.style.display = 'block';
+    };
+    r.readAsDataURL(files[side]);
+    document.getElementById('verifybtn').disabled = !(files.front && files.back);
+  });
+});
+
+/* ── Verify ── */
+async function verify() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('verifybtn').disabled = true;
+  document.getElementById('result-card').style.display = 'none';
+  document.getElementById('prep-section').style.display = 'none';
+
+  const fd  = new FormData();
+  fd.append('front', files.front);
+  fd.append('back',  files.back);
+  const dv  = document.getElementById('denom-sel').value;
+  const url = '/analyse' + (dv ? '?denom='+dv : '');
+
+  try {
+    const res = await fetch(url, {method:'POST', body:fd});
+    const d   = await res.json();
+    if (d.error) { alert('Error: ' + d.error + (d.hint ? '\n\n'+d.hint : '')); return; }
+    renderResult(d);
+    renderPrep(d);
+    document.getElementById('prep-section').style.display = 'block';
+    loadHistory();
+  } catch(e) {
+    alert('Request failed: ' + e.message);
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('verifybtn').disabled = false;
+}
+
+/* ── Result banner ── */
+function renderResult(d) {
+  const card = document.getElementById('result-card');
+  const cls  = d.verdict==='GENUINE' ? 'genuine' : d.verdict==='UNCERTAIN' ? 'uncertain' : 'suspicious';
+  card.className = 'result-card ' + cls;
+  card.style.display = 'block';
+
+  const icon = d.verdict==='GENUINE' ? '✅' : d.verdict==='UNCERTAIN' ? '⚠️' : '❌';
+  document.getElementById('r-verdict').textContent = icon + ' ' + d.verdict;
+  document.getElementById('r-sub').textContent =
+    d.denomination + ' — Sri Lankan Rupee  ·  Detection confidence: ' + d.denom_conf + '%';
+  document.getElementById('r-conf').textContent  = d.model_conf + '%';
+  document.getElementById('r-front').textContent = d.front_conf + '%';
+  document.getElementById('r-back').textContent  = d.back_conf  + '%';
+
+  const ae = document.getElementById('ae-detail');
+  ae.innerHTML = '';
+  [
+    {label:'FRONT', conf:d.front_conf, err:d.front_error, thresh:d.front_thresh},
+    {label:'BACK',  conf:d.back_conf,  err:d.back_error,  thresh:d.back_thresh},
+  ].forEach(s => {
+    const ok  = s.err <= s.thresh;
+    const col = ok ? '#15803d' : '#b91c1c';
+    const badgeCls = s.conf>=65?'badge-genuine':s.conf<=35?'badge-suspicious':'badge-uncertain';
+    const badgeTxt = s.conf>=65?'GENUINE':s.conf<=35?'SUSPICIOUS':'UNCERTAIN';
+    const div = document.createElement('div');
+    div.className = 'ae-card';
+    div.innerHTML = `
+      <div class="ae-card-title">${s.label} — Autoencoder result</div>
+      <div class="ae-row">
+        <span class="ae-label">Confidence score</span>
+        <span class="ae-value" style="color:${col}">${s.conf}%</span>
+      </div>
+      <div class="ae-bar-bg">
+        <div class="ae-bar-fill" style="width:${s.conf}%;background:${col}"></div>
+        <div class="ae-bar-thresh"></div>
+      </div>
+      <div class="ae-row" style="margin-top:12px">
+        <span class="ae-label">Reconstruction error</span>
+        <span class="ae-value">${s.err.toFixed(5)}</span>
+      </div>
+      <div class="ae-row">
+        <span class="ae-label">Threshold</span>
+        <span class="ae-value">${s.thresh.toFixed(5)}</span>
+      </div>
+      <div class="ae-row">
+        <span class="ae-label">Result</span>
+        <span class="ae-value" style="color:${ok?'#15803d':'#b91c1c'}">
+          ${ok ? '✅ Below threshold — genuine' : '❌ Above threshold — suspicious'}
+        </span>
+      </div>
+      <div style="text-align:center;margin-top:10px">
+        <span class="verdict-badge ${badgeCls}">${badgeTxt}</span>
+      </div>`;
+    ae.appendChild(div);
+  });
+}
+
+/* ── Preprocessing steps — stage by stage ── */
+function renderPrep(d) {
+  ['front','back'].forEach(side => {
+    const steps = side==='front' ? d.preprocess_front      : d.preprocess_back;
+    const info  = side==='front' ? d.preprocess_info_front : d.preprocess_info_back;
+
+    /* Info chips */
+    const chipEl = document.getElementById('chips-'+side);
+    chipEl.innerHTML = '';
+    if (info) {
+      [
+        {txt: info.was_rotated ? '🔄 Auto-rotated to landscape' : '✅ Already landscape', ok:true},
+        {txt: info.corners_detected
+              ? '📐 Corners detected → Perspective warp applied'
+              : '⚠️ Corners not detected → Simple resize used', ok:info.corners_detected},
+        {txt: '📏 Output: ' + info.final_size + ' px', ok:true},
+        {txt: '⚙️ ' + (info.method||'perspective_warp'), ok:true},
+      ].forEach(c => {
+        const el = document.createElement('div');
+        el.className = 'chip '+(c.ok?'ok':'warn');
+        el.textContent = c.txt;
+        chipEl.appendChild(el);
+      });
+    }
+
+    /* Build step-by-step flow */
+    const container = document.getElementById('steps-'+side);
+    container.innerHTML = '';
+
+    STEPS.forEach((step, idx) => {
+      const b64      = steps ? steps[step.key] : null;
+      const isLast   = idx === STEPS.length - 1;
+
+      const row = document.createElement('div');
+      row.className = 'step-row';
+
+      /* Left connector column */
+      const conn = document.createElement('div');
+      conn.className = 'step-connector';
+      conn.innerHTML = `
+        <div class="step-circle ${step.cls}">${step.num}</div>
+        ${!isLast ? '<div class="step-line"></div>' : ''}`;
+
+      /* Right content column */
+      const content = document.createElement('div');
+      content.className = 'step-content';
+      content.style.paddingLeft = '14px';
+
+      const card = document.createElement('div');
+      card.className = 'step-card' + (step.isFinal ? ' final-step' : '');
+
+      const readyBadge = step.isFinal
+        ? '<span class="ready-badge">READY FOR AUTOENCODER</span>'
+        : '';
+
+      card.innerHTML = `
+        <div class="step-card-head">
+          <span class="step-tag ${step.tag}">${step.tagTxt}</span>
+          <div>
+            <div class="step-card-title">${step.title}${readyBadge}</div>
+            <div class="step-card-desc">${step.desc}</div>
+          </div>
+        </div>`;
+
+      if (b64) {
+        const imgWrap = document.createElement('div');
+        imgWrap.className = 'step-img-wrap tall';
+        imgWrap.innerHTML = `<img src="data:image/png;base64,${b64}" alt="${step.title}" loading="lazy"/>`;
+        imgWrap.onclick = () => openLB(b64, step.title);
+        card.appendChild(imgWrap);
+      } else {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'padding:16px;color:#94a3b8;font-size:.8rem;text-align:center';
+        empty.textContent = 'Image not available';
+        card.appendChild(empty);
+      }
+
+      content.appendChild(card);
+      row.appendChild(conn);
+      row.appendChild(content);
+      container.appendChild(row);
+    });
+  });
+}
+
+/* ── Side tab toggle ── */
+function showSide(side, btn) {
+  document.querySelectorAll('.side-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('steps-front').style.display  = side==='front' ? 'flex' : 'none';
+  document.getElementById('steps-back').style.display   = side==='back'  ? 'flex' : 'none';
+  document.getElementById('chips-front').style.display  = side==='front' ? 'flex' : 'none';
+  document.getElementById('chips-back').style.display   = side==='back'  ? 'flex' : 'none';
+}
+
+/* ── History ── */
+async function loadHistory() {
+  try {
+    const data = await (await fetch('/history')).json();
+    const tbody = document.getElementById('hist-body');
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">No scans yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(h => {
+      const cls = h.verdict==='GENUINE'?'vg':h.verdict==='UNCERTAIN'?'vu':'vs';
+      return `<tr>
+        <td>${h.timestamp}</td>
+        <td><strong>${h.denomination}</strong></td>
+        <td><span class="vbadge ${cls}">${h.verdict}</span></td>
+        <td>${h.confidence}%</td>
+        <td>${h.auth_score}%</td>
+      </tr>`;
+    }).join('');
+  } catch(_) {}
+}
+
+/* ── Lightbox ── */
+function openLB(b64, label) {
+  document.getElementById('lb-img').src = 'data:image/png;base64,'+b64;
+  document.getElementById('lb-cap').textContent = label;
+  document.getElementById('lb').classList.add('open');
+}
+function closeLB() { document.getElementById('lb').classList.remove('open'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeLB(); });
+
+loadHistory();
+</script>
+</body>
+</html>
