@@ -2,7 +2,7 @@
 
 A web app that checks whether a Sri Lankan currency note is **real or fake** using AI.
 
-Just upload a photo of the front and back of a note — the app tells you if it's **GENUINE**, **SUSPICIOUS**, or **UNCERTAIN**.
+Just upload a photo of the front and back of a note the app tells you if it's **GENUINE**, **SUSPICIOUS**, or **UNCERTAIN**.
 
 ---
 
